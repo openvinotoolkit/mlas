@@ -199,16 +199,18 @@ MlasActivation(
 /**
  * @brief Supply matrices data information to single precision gemm functions
  */
-struct MLAS_SGEMM_DATA_PARAMS {
-    const float* A = nullptr; /**< Supplies the address of matrix A */
-    size_t lda = 0;           /**< Supplies the first dimension of matrix A. */
-    const float* B = nullptr; /**< Supplies the address of matrix B */
-    size_t ldb = 0;           /**< Supplies the first dimension of matrix B. */
-    float* C = nullptr;       /**< Supplies the address of matrix C */
-    size_t ldc = 0;           /**< Supplies the first dimension of matrix C. */
-    float alpha = 1.0f;       /**< Supplies the scalar alpha multiplier (see SGEMM definition) */
-    float beta = 0.0f;        /**< Supplies the scalar beta multiplier (see SGEMM definition) */
-    bool BIsPacked = false;   /**< Whether B is pre-packed */
+struct MLAS_SGEMM_DATA_PARAMS
+{
+    const float *A = nullptr;    /**< Supplies the address of matrix A */
+    size_t lda = 0;              /**< Supplies the first dimension of matrix A. */
+    const float *B = nullptr;    /**< Supplies the address of matrix B */
+    size_t ldb = 0;              /**< Supplies the first dimension of matrix B. */
+    float *C = nullptr;          /**< Supplies the address of matrix C */
+    size_t ldc = 0;              /**< Supplies the first dimension of matrix C. */
+    float alpha = 1.0f;          /**< Supplies the scalar alpha multiplier (see SGEMM definition) */
+    float beta = 0.0f;           /**< Supplies the scalar beta multiplier (see SGEMM definition) */
+    bool BIsPacked = false;      /**< Whether B is pre-packed */
+    const float *bias = nullptr; /**< bias per column>*/
 };
 
 /**
