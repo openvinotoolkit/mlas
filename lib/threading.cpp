@@ -43,8 +43,14 @@ MlasExecuteThreaded(
     //
     // Execute the routine for the specified number of iterations.
     //
-    for (ptrdiff_t tid = 0; tid < Iterations; tid++) {
-        ThreadedRoutine(Context, tid);
+    if (ThreadPool) {
+        for (std::ptrdiff_t tid = 0; tid < Iterations; tid++) {
+            ThreadedRoutine(Context, tid);
+        }
+    } else {
+        ThreadPool->TrySimpleParallelFor(Iterations, [&](ptrdiff_t tid) {
+            ThreadedRoutine(Context, tid);
+        });
     }
 #else
     //
@@ -82,8 +88,12 @@ MlasTrySimpleParallel(
     //
     // Execute the routine for the specified number of iterations.
     //
-    for (ptrdiff_t tid = 0; tid < Iterations; tid++) {
-        Work(tid);
+    if (ThreadPool == nullptr) {
+        for (std::ptrdiff_t i = 0; i < Iterations; i++) {
+            Work(i);
+        }
+    } else {
+        ThreadPool->TrySimpleParallelFor(Iterations, Work);
     }
 #else
     //

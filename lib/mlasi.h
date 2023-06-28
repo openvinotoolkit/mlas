@@ -65,7 +65,9 @@ Abstract:
 #include <wasm_simd128.h>
 #endif
 #endif
-
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wmissing-declarations"
+#endif
 //
 // Macro to place variables at a specified alignment.
 //
@@ -1038,8 +1040,7 @@ MlasGetMaximumThreadCount(
     )
 {
 #if defined(BUILD_MLAS_NO_ONNXRUNTIME)
-    MLAS_UNREFERENCED_PARAMETER(ThreadPool);
-    return 1;
+    return ThreadPool ? ThreadPool->DegreeOfParallelism() : 1;
 #else
     return onnxruntime::concurrency::ThreadPool::DegreeOfParallelism(ThreadPool);
 #endif
@@ -2188,7 +2189,7 @@ MlasThreadedBufAlloc(size_t size)
 #ifdef _MSC_VER
         ThreadedBufHolder.reset(
             reinterpret_cast<uint8_t*>(_aligned_malloc(size, ThreadedBufAlignment)));
-#elif (__STDC_VERSION__ >= 201112L) && !defined(__APPLE__)
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) && !defined(__APPLE__)
         ThreadedBufHolder.reset(
             reinterpret_cast<uint8_t*>(aligned_alloc(ThreadedBufAlignment, size)));
 #else

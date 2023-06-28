@@ -26,6 +26,18 @@ Abstract:
 
 #define MLAS_SGEMM_TRANSA_ROWS              12
 
+// split K with cacheSize
+static size_t getKStride() {
+    size_t SGEMM_PACKED_STRIDEK = MLAS_SGEMM_PACKED_STRIDEK;
+    // MLAS split matrix into A(12*K_Blk) x B(12xK_Blk*32) = C(12 * 32)
+    // if these data is smaller than L2 cache, then we could enlarge K_Blk
+    // 1024 here is chosen as a empirical value
+    if ((12*1024 + 1024 * 32 + 12 * 32) * 4 < ov::cpu::getCacheSize(2, true)) {
+        SGEMM_PACKED_STRIDEK = 1024;
+    }
+    return SGEMM_PACKED_STRIDEK;
+};
+
 //
 // Define the parameters to execute segments of a SGEMM operation on worker
 // threads.
@@ -1400,7 +1412,9 @@ Return Value:
 
 --*/
 {
-    float PanelA[MLAS_SGEMM_TRANSA_ROWS * MLAS_SGEMM_PACKED_STRIDEK];
+    const size_t SGEMM_PACKED_STRIDEK = getKStride();
+    // max K stride is 1024
+    float PanelA[MLAS_SGEMM_TRANSA_ROWS * 1024];
 
     //
     // Step through each slice of matrix B along the N dimension.
@@ -1431,7 +1445,7 @@ Return Value:
 
         for (size_t k = 0; k < K; k += CountK) {
 
-            CountK = std::min(K - k, size_t(MLAS_SGEMM_PACKED_STRIDEK));
+            CountK = std::min(K - k, size_t(SGEMM_PACKED_STRIDEK));
 
             //
             // Step through each slice of matrix A along the M dimension.
@@ -1614,7 +1628,9 @@ MlasGemmBatch(
     if (TargetThreadCount >= MaximumThreadCount) {
         TargetThreadCount = MaximumThreadCount;
     }
-
+    // let MLAS uses all available threads
+    TargetThreadCount = MaximumThreadCount;
+    
     //
     // Segment the operation across multiple threads.
     //
@@ -1742,7 +1758,7 @@ Return Value:
 {
     const size_t AlignedN =
         (N + MLAS_SGEMM_STRIDEN_THREAD_ALIGN - 1) & ~(MLAS_SGEMM_STRIDEN_THREAD_ALIGN - 1);
-
+    const size_t SGEMM_PACKED_STRIDEK = getKStride();
     //
     // Step through each slice of matrix B along the K dimension.
     //
@@ -1751,7 +1767,7 @@ Return Value:
 
     for (size_t k = 0; k < K; k += CountK) {
 
-        CountK = std::min(K - k, size_t(MLAS_SGEMM_PACKED_STRIDEK));
+        CountK = std::min(K - k, size_t(SGEMM_PACKED_STRIDEK));
 
         if (TransB == CblasNoTrans) {
             MlasSgemmCopyPackB((float*)PackedB, B + k * ldb, ldb, N, CountK);

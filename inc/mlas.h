@@ -20,12 +20,12 @@ Abstract:
 #include <cstddef>
 #include <cstdlib>
 #include <cstdint>
-
+#include <functional>
 //
 // Define the calling convention for Windows targets.
 //
 
-#if (_MSC_VER >= 800) || defined(_STDCALL_SUPPORTED)
+#if (defined(_MSC_VER) && _MSC_VER >= 800) || defined(_STDCALL_SUPPORTED)
 #define MLASCALL __stdcall
 #else
 #define MLASCALL
@@ -111,13 +111,28 @@ typedef enum { CblasLeft=141, CblasRight=142} CBLAS_SIDE;
 //
 
 namespace onnxruntime {
-    namespace concurrency {
-        class ThreadPool;
-    };
     struct MLFloat16;
 };  // namespace onnxruntime
 
-using MLAS_THREADPOOL = onnxruntime::concurrency::ThreadPool;
+namespace ov {
+namespace cpu {
+class ThreadPool {
+public:
+    ThreadPool() = default;
+    virtual size_t DegreeOfParallelism() {
+        return 1;
+    };
+    virtual void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
+        for (std::ptrdiff_t i = 1; i < total; i++) {
+            fn(i);
+        };
+    };
+};
+size_t getCacheSize(int level, bool perCore);
+};  // namespace cpu
+};  // namespace ov
+
+using MLAS_THREADPOOL = ov::cpu::ThreadPool;
 
 
 //

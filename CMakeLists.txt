@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.13)
 project(mlas C CXX ASM_MASM)
 set(MLAS_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 add_compile_definitions(BUILD_MLAS_NO_ONNXRUNTIME)
