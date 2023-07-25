@@ -114,25 +114,15 @@ namespace onnxruntime {
     struct MLFloat16;
 };  // namespace onnxruntime
 
-namespace ov {
-namespace cpu {
-class ThreadPool {
+class IMlasThreadPool {
 public:
-    ThreadPool() = default;
-    virtual size_t DegreeOfParallelism() {
-        return 1;
-    };
-    virtual void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
-        for (std::ptrdiff_t i = 1; i < total; i++) {
-            fn(i);
-        };
-    };
+    IMlasThreadPool() = default;
+    virtual size_t DegreeOfParallelism() = 0;
+    virtual void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) = 0;
 };
-size_t getCacheSize(int level, bool perCore);
-};  // namespace cpu
-};  // namespace ov
+size_t getCacheSizeMlas(int level, bool perCore);
 
-using MLAS_THREADPOOL = ov::cpu::ThreadPool;
+using MLAS_THREADPOOL = IMlasThreadPool;
 
 
 //
