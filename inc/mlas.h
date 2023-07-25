@@ -120,7 +120,7 @@ public:
     virtual size_t DegreeOfParallelism() = 0;
     virtual void TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) = 0;
 };
-size_t getCacheSizeMlas(int level, bool perCore);
+//size_t getCacheSizeMlas(int level, bool perCore);
 
 using MLAS_THREADPOOL = IMlasThreadPool;
 
