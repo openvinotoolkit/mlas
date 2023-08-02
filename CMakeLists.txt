@@ -113,12 +113,58 @@ else()
         set(X86 TRUE)
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64)$")
         set(X86_64 TRUE)
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*)")
+        set(AARCH64 TRUE)
     endif()
 
     #If ONNXRUNTIME_MLAS_MULTI_ARCH is true, we need to go through every if branch below
     #and split MLAS to multiple static libraries.
     #Otherwise, it works like if(...) elseif(...) elseif(...) endif()
     set(MLAS_SOURCE_IS_NOT_SET 1)
+
+    if(AARCH64 AND MLAS_SOURCE_IS_NOT_SET)
+        enable_language(ASM)
+        set(mlas_platform_srcs
+            ${MLAS_SRC_DIR}/aarch64/ConvSymS8KernelDot.S
+            ${MLAS_SRC_DIR}/aarch64/ConvSymS8KernelDotLd64.S
+            ${MLAS_SRC_DIR}/aarch64/ConvSymS8KernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/ConvSymU8KernelDot.S
+            ${MLAS_SRC_DIR}/aarch64/ConvSymU8KernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/DepthwiseQConvKernelSize9Neon.S
+            ${MLAS_SRC_DIR}/aarch64/DepthwiseQConvSymS8KernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/DepthwiseQConvSymU8KernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/HalfGemmKernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/QgemmS8S8KernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/QgemmS8S8KernelSdot.S
+            ${MLAS_SRC_DIR}/aarch64/QgemmU8X8KernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/QgemmU8X8KernelUdot.S
+            ${MLAS_SRC_DIR}/aarch64/SgemmKernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/SgemvKernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/SymQgemmS8KernelNeon.S
+            ${MLAS_SRC_DIR}/aarch64/SymQgemmS8KernelSdot.S
+            ${MLAS_SRC_DIR}/aarch64/SymQgemmS8KernelSdotLd64.S
+            ${MLAS_SRC_DIR}/qgemm_kernel_neon.cpp
+            ${MLAS_SRC_DIR}/qgemm_kernel_sdot.cpp
+            ${MLAS_SRC_DIR}/qgemm_kernel_udot.cpp
+        )
+        if (NOT APPLE)
+            set(mlas_platform_srcs
+                ${mlas_platform_srcs}
+                ${MLAS_SRC_DIR}/aarch64/HalfGemmKernelNeon.S
+                ${MLAS_SRC_DIR}/activate_fp16.cpp
+                ${MLAS_SRC_DIR}/dwconv.cpp
+                ${MLAS_SRC_DIR}/halfgemm_kernel_neon.cpp
+                ${MLAS_SRC_DIR}/pooling_fp16.cpp
+            )
+        endif()
+        set_source_files_properties(${MLAS_SRC_DIR}/aarch64/HalfGemmKernelNeon.S PROPERTIES COMPILE_FLAGS " -march=armv8.2-a+fp16 ")
+        set_source_files_properties(${MLAS_SRC_DIR}/activate_fp16.cpp PROPERTIES COMPILE_FLAGS " -march=armv8.2-a+fp16 ")
+        set_source_files_properties(${MLAS_SRC_DIR}/dwconv.cpp PROPERTIES COMPILE_FLAGS " -march=armv8.2-a+fp16 ")
+        set_source_files_properties(${MLAS_SRC_DIR}/pooling_fp16.cpp PROPERTIES COMPILE_FLAGS " -march=armv8.2-a+fp16 ")
+        if(NOT ONNXRUNTIME_MLAS_MULTI_ARCH)
+            set(MLAS_SOURCE_IS_NOT_SET 0)
+        endif()
+    endif()
 
     if(X86 AND MLAS_SOURCE_IS_NOT_SET)
         enable_language(ASM)
