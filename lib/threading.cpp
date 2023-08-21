@@ -43,7 +43,7 @@ MlasExecuteThreaded(
     //
     // Execute the routine for the specified number of iterations.
     //
-    if (ThreadPool) {
+    if (ThreadPool == nullptr) {
         for (std::ptrdiff_t tid = 0; tid < Iterations; tid++) {
             ThreadedRoutine(Context, tid);
         }
