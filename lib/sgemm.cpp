@@ -29,12 +29,12 @@ Abstract:
 // split K with cacheSize
 static size_t getKStride() {
     size_t SGEMM_PACKED_STRIDEK = MLAS_SGEMM_PACKED_STRIDEK;
-    // MLAS split matrix into A(12*K_Blk) x B(12xK_Blk*32) = C(12 * 32)
+    // MLAS split matrix into A(12*K_Blk) x B(12xK_Blk*MLAS_SGEMM_PACKED_STRIDEN) = C(12 * MLAS_SGEMM_PACKED_STRIDEN)
     // if these data is smaller than L2 cache, then we could enlarge K_Blk
     // 1024 here is chosen as a empirical value
-    if ((12*1024 + 1024 * 32 + 12 * 32) * 4 < getCacheSizeMlas(2, true)) {
-        SGEMM_PACKED_STRIDEK = 1024;
-    }
+    auto L2Cache = getCacheSizeMlas(2, true);
+    SGEMM_PACKED_STRIDEK = (L2Cache / sizeof(float) - 12 * MLAS_SGEMM_PACKED_STRIDEN) / (MLAS_SGEMM_PACKED_STRIDEN + 12);
+    SGEMM_PACKED_STRIDEK = SGEMM_PACKED_STRIDEK >= 1024 ? 1024 : (SGEMM_PACKED_STRIDEK) & ~(MLAS_SGEMM_PACKED_STRIDEK - 1);
     return SGEMM_PACKED_STRIDEK;
 };
 
@@ -1641,27 +1641,47 @@ MlasGemmBatch(
     ptrdiff_t ThreadsPerGemm = (TargetThreadCount + BatchSize - 1) / BatchSize;
     ptrdiff_t ThreadCountM;
     ptrdiff_t ThreadCountN;
-
-    if (N > M) {
-
-        const size_t BlockedN = (N + MLAS_SGEMM_STRIDEN_THREAD_ALIGN - 1) /
-            MLAS_SGEMM_STRIDEN_THREAD_ALIGN;
-
-        if (size_t(ThreadsPerGemm) > BlockedN) {
-            ThreadsPerGemm = ptrdiff_t(BlockedN);
+    //This heriustic is observed by the performance tests, mlas has poor performance when core >= 32
+    if (TargetThreadCount >= 32) {
+        ptrdiff_t L2CacheSize = getCacheSizeMlas(2, true);
+        // Ensure that data used fits L2 cache. M_BLK = (L2/sizeof(float) - N * K ) / (K + N), ThreadCountM = M / M_BLK
+        ptrdiff_t KStride = getKStride();
+        ThreadCountM = M * (KStride + MLAS_SGEMM_PACKED_STRIDEN) / (L2CacheSize / sizeof(float) - MLAS_SGEMM_PACKED_STRIDEN * KStride);
+        ThreadCountM = ThreadCountM >= ThreadsPerGemm ? ThreadsPerGemm : ThreadCountM;
+        if (ThreadCountM <= 1) {
+            ThreadCountM = M >= 128 ? 2 : 1;
+        } else {
+            for (ptrdiff_t i = ThreadCountM; i < ThreadsPerGemm; i++) {
+                if (ThreadsPerGemm % i == 0) {
+                    ThreadCountM = i;
+                    break;
+                }
+            }
+            ThreadCountM = (ThreadsPerGemm % ThreadCountM == 0) ? ThreadCountM : ThreadsPerGemm;
         }
-
-        ThreadCountM = 1;
-        ThreadCountN = ThreadsPerGemm;
-
+        ThreadCountN = ThreadsPerGemm / ThreadCountM;
     } else {
+        if (N > M) {
 
-        if (size_t(ThreadsPerGemm) > M) {
-            ThreadsPerGemm = ptrdiff_t(M);
+            const size_t BlockedN = (N + MLAS_SGEMM_STRIDEN_THREAD_ALIGN - 1) /
+                MLAS_SGEMM_STRIDEN_THREAD_ALIGN;
+
+            if (size_t(ThreadsPerGemm) > BlockedN) {
+                ThreadsPerGemm = ptrdiff_t(BlockedN);
+            }
+
+            ThreadCountM = 1;
+            ThreadCountN = ThreadsPerGemm;
+
+        } else {
+
+            if (size_t(ThreadsPerGemm) > M) {
+                ThreadsPerGemm = ptrdiff_t(M);
+            }
+
+            ThreadCountM = ThreadsPerGemm;
+            ThreadCountN = 1;
         }
-
-        ThreadCountM = ThreadsPerGemm;
-        ThreadCountN = 1;
     }
 
     MlasTrySimpleParallel(ThreadPool,
