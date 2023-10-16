@@ -1642,7 +1642,7 @@ MlasGemmBatch(
     ptrdiff_t ThreadCountM;
     ptrdiff_t ThreadCountN;
     //This heriustic is observed by the performance tests, mlas has poor performance when core >= 32
-    if (TargetThreadCount >= 32) {
+    if (TargetThreadCount >= 28) {
         ptrdiff_t L2CacheSize = getCacheSizeMlas(2, true);
         // Ensure that data used fits L2 cache. M_BLK = (L2/sizeof(float) - N * K ) / (K + N), ThreadCountM = M / M_BLK
         ptrdiff_t KStride = getKStride();
