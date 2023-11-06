@@ -29,12 +29,15 @@ Abstract:
 // split K with cacheSize
 static size_t getKStride() {
     size_t SGEMM_PACKED_STRIDEK = MLAS_SGEMM_PACKED_STRIDEK;
-    // MLAS split matrix into A(12*K_Blk) x B(12xK_Blk*MLAS_SGEMM_PACKED_STRIDEN) = C(12 * MLAS_SGEMM_PACKED_STRIDEN)
+    // MLAS split matrix into A(12*K_Blk) x B(K_Blk*MLAS_SGEMM_PACKED_STRIDEN) = C(12 * MLAS_SGEMM_PACKED_STRIDEN)
     // if these data is smaller than L2 cache, then we could enlarge K_Blk
-    // 1024 here is chosen as a empirical value
+    // Upper bound 1024 and lower bound 256 here are empirical value
     auto L2Cache = getCacheSizeMlas(2, true);
     SGEMM_PACKED_STRIDEK = (L2Cache / sizeof(float) - 12 * MLAS_SGEMM_PACKED_STRIDEN) / (MLAS_SGEMM_PACKED_STRIDEN + 12);
+    // apply upper bound 1024
     SGEMM_PACKED_STRIDEK = SGEMM_PACKED_STRIDEK >= 1024 ? 1024 : (SGEMM_PACKED_STRIDEK) & ~(MLAS_SGEMM_PACKED_STRIDEK - 1);
+    // apply lower bound 256
+    SGEMM_PACKED_STRIDEK = SGEMM_PACKED_STRIDEK < 256 ? 256 : SGEMM_PACKED_STRIDEK;
     return SGEMM_PACKED_STRIDEK;
 };
 
