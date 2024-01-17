@@ -1645,12 +1645,14 @@ MlasGemmBatch(
     ptrdiff_t ThreadCountM;
     ptrdiff_t ThreadCountN;
     //This heriustic is observed by the performance tests, mlas has poor performance when core >= 32
-    if (TargetThreadCount >= 32) {
+    //This thread tuning is dedicated for packed B
+    if (TargetThreadCount >= 32 && Data->BIsPacked) {
         ptrdiff_t L2CacheSize = getCacheSizeMlas(2, true);
         // Ensure that data used fits L2 cache. M_BLK = (L2/sizeof(float) - N * K ) / (K + N), ThreadCountM = M / M_BLK
         ptrdiff_t KStride = getKStride();
         ThreadCountM = M * (KStride + MLAS_SGEMM_PACKED_STRIDEN) / (L2CacheSize / sizeof(float) - MLAS_SGEMM_PACKED_STRIDEN * KStride);
         ThreadCountM = ThreadCountM >= ThreadsPerGemm ? ThreadsPerGemm : ThreadCountM;
+        ptrdiff_t ThreadMDefault = 1;
         if (ThreadCountM <= 1) {
             ThreadCountM = M >= 128 ? 2 : 1;
         } else {
@@ -1660,8 +1662,10 @@ MlasGemmBatch(
                     break;
                 }
             }
-            ThreadCountM = (ThreadsPerGemm % ThreadCountM == 0) ? ThreadCountM : ThreadsPerGemm;
+            ThreadMDefault = ThreadsPerGemm;
         }
+        // ThreadsPerGemm must be divisible by ThreadCountM, otherwise set ThreadMDefault
+        ThreadCountM = ThreadsPerGemm % ThreadCountM ? ThreadMDefault : ThreadCountM;
         ThreadCountN = ThreadsPerGemm / ThreadCountM;
     } else {
         if (N > M) {
